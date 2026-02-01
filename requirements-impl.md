@@ -36,8 +36,9 @@ Aligned with **FR-1.1** (desktop), **FR-1.2** (GUI), and **Technical / Implement
 ```
 AgenticFlow/
 ├── src/
-│   ├── core/                 # Data models (Flow, Agent, Connection)
+│   ├── core/                 # Data models and flow operations
 │   │   ├── models.py
+│   │   ├── flowOperations.py
 │   │   └── __init__.py
 │   ├── persistence/          # Save/load (FR-7.1, FR-7.2)
 │   │   ├── storage.py
@@ -45,9 +46,14 @@ AgenticFlow/
 │   ├── runtime/              # ADK, execution, validation (FR-2.4–2.5, FR-3.x, FR-4.x, FR-8.1)
 │   │   ├── executor.py
 │   │   ├── validation.py
+│   │   ├── credentials.py
+│   │   ├── context.py
+│   │   ├── events.py
+│   │   ├── state.py
 │   │   └── __init__.py
 │   └── ui/                  # Main window, canvas, panels (FR-1.2, FR-5.x, FR-6.x)
 │       ├── main.py
+│       ├── actions.py
 │       ├── canvas/
 │       │   ├── scene.py      # QGraphicsScene: nodes, edges
 │       │   ├── node.py       # Agent node widget
@@ -62,29 +68,68 @@ AgenticFlow/
 
 ---
 
-## 3.5 Backend Entry Points (Internal API)
+## 3.5 Internal Endpoints (Authoritative APIs)
 
-These are **internal backend endpoints** (module-level functions/classes) that
-both development and testing agents should use to locate critical behavior.
-They are **not HTTP endpoints**; they are explicit entry points for runtime,
-validation, and persistence.
+These are **internal endpoints** (module-level functions/classes) that define
+where each requirement is implemented. They are **not HTTP endpoints**. All
+runtime logic should live in backend endpoints; UI should call them via
+`ui/actions.py`. Endpoint names use lower camel case (per coding standards).
 
-| Endpoint (Module Path) | Expected Entry Point | Responsibility | FRs |
-|---|---|---|---|
-| `src/core/models.py` | `Agent`, `Connection`, `Flow` | Data model classes for flow graphs | FR-2.1, FR-3.1, FR-7.1 |
-| `src/persistence/storage.py` | `loadFlow(path) -> Flow` | Load flow JSON from disk | FR-7.1 |
-| `src/persistence/storage.py` | `saveFlow(flow, path) -> None` | Save flow JSON to disk | FR-7.1 |
-| `src/persistence/storage.py` | `loadLastPath() -> Optional[str]` | Read last opened flow path | FR-7.2 |
-| `src/persistence/storage.py` | `saveLastPath(path) -> None` | Persist last opened flow path | FR-7.2 |
-| `src/runtime/credentials.py` | `getGoogleApiKey() -> str` | Read `GOOGLE_API_KEY` from env; raise on missing | FR-2.6 |
-| `src/runtime/validation.py` | `validateFlow(flow) -> (bool, str)` | Pre-run validation: env + API reachability | FR-2.5, FR-2.6 |
-| `src/runtime/executor.py` | `runAgent(agentId, inputText, flow, eventCallback) -> str` | Execute single agent via ADK | FR-2.4, FR-2.7, FR-4.1 |
-| `src/runtime/executor.py` | `runFlow(flow, entryAgentId, userMessage, cancelToken, eventCallback) -> None` | Execute multi-agent flow with fan-out | FR-3.2, FR-3.3, FR-4.2, FR-4.3, FR-8.1 |
-| `src/runtime/events.py` | `emitEvent(eventType, payload)` | Canonical runtime → GUI event dispatch | FR-5.1–5.8 |
+### 3.5.1 Endpoint Registry (by module)
 
-**Notes for testing:** Tests should target the functions above directly. All
-logic for validation and execution should live in these backend entry points,
-not in UI callbacks.
+| Module Path | Endpoints | Responsibility |
+|---|---|---|
+| `src/core/models.py` | `Agent`, `Connection`, `Flow` | Data model classes for flow graphs |
+| `src/core/flowOperations.py` | `createFlow`, `createAgent`, `createConnection`, `addAgentToFlow`, `removeAgentFromFlow`, `addConnectionToFlow`, `removeConnectionFromFlow`, `updateConnectionTarget`, `updateAgentInstructions`, `updateAgentPosition`, `getAgentById`, `getDownstreamConnections` | Flow creation, mutation, and queries |
+| `src/persistence/storage.py` | `saveFlow`, `loadFlow`, `saveLastPath`, `loadLastPath` | JSON persistence and last-path storage |
+| `src/runtime/credentials.py` | `getGoogleApiKey`, `validateGoogleApiKey` | Read and validate `GOOGLE_API_KEY` |
+| `src/runtime/validation.py` | `validateFlow`, `validateAdkConnectivity` | Pre-run validation and API reachability |
+| `src/runtime/context.py` | `buildAgentContext`, `updateAgentContext` | Per-agent context assembly and updates |
+| `src/runtime/state.py` | `setAgentOutput`, `getAgentState`, `setConnectionData`, `getConnectionState` | Run-time state for hover and UI display |
+| `src/runtime/events.py` | `RuntimeEventBus`, `emitEvent`, `registerListener` | Runtime to UI event dispatch |
+| `src/runtime/executor.py` | `runAgent`, `runFlow`, `createCancelToken`, `cancelRun` | ADK execution and cancellation |
+| `src/ui/actions.py` | `runSelectedAgentWithMessage`, `stopActiveRun`, `addAgentAtPosition`, `removeSelectedAgent`, `startConnectionDrag`, `completeConnectionDrag`, `selectAgentById`, `updateSelectedAgentInstructions`, `openFlowFromPath`, `saveFlowToPath`, `restoreLastFlow` | UI adapters that call backend endpoints |
+| `src/ui/canvas/scene.py` | `renderFlow`, `setAgentProcessingState`, `setConnectionTransitState`, `showAgentHover`, `showConnectionHover` | Canvas visualization hooks |
+
+### 3.5.2 Requirement to Endpoint Map (all FRs)
+
+| FR | Endpoint(s) |
+|---|---|
+| FR-1.1 | `main.py:startApplication`, `ui/main.py:createMainWindow` |
+| FR-1.2 | `ui/main.py:createMainWindow`, `ui/actions.py` (all user-driven actions) |
+| FR-2.1 | `core/flowOperations.createAgent`, `core/flowOperations.addAgentToFlow` |
+| FR-2.2 | `runtime/context.buildAgentContext`, `runtime/context.updateAgentContext` |
+| FR-2.3 | `runtime/context.buildAgentContext` (provided context) |
+| FR-2.4 | `runtime/executor.runAgent` (fixed model) |
+| FR-2.5 | `runtime/validation.validateFlow`, `runtime/validation.validateAdkConnectivity` |
+| FR-2.6 | `runtime/credentials.getGoogleApiKey`, `runtime/credentials.validateGoogleApiKey` |
+| FR-2.7 | `core/flowOperations.updateAgentInstructions`, `ui/actions.updateSelectedAgentInstructions` |
+| FR-3.1 | `core/flowOperations.createFlow`, `core/flowOperations.addAgentToFlow`, `core/flowOperations.addConnectionToFlow` |
+| FR-3.2 | `core/flowOperations.getDownstreamConnections`, `runtime/executor.runFlow` |
+| FR-3.3 | `runtime/executor.runFlow` |
+| FR-4.1 | `ui/actions.runSelectedAgentWithMessage`, `runtime/executor.runAgent` |
+| FR-4.2 | `runtime/executor.runFlow`, `core/flowOperations.getDownstreamConnections` |
+| FR-4.3 | `runtime/executor.runFlow` |
+| FR-5.1 | `ui/canvas/scene.renderFlow` |
+| FR-5.2 | `ui/canvas/scene.renderFlow` (connections) |
+| FR-5.3 | `ui/canvas/scene.renderFlow` (node borders) |
+| FR-5.4 | `runtime/events.emitEvent` (data_in_transit), `ui/canvas/scene.setConnectionTransitState` |
+| FR-5.5 | `runtime/events.emitEvent` (agent_processing_*), `ui/canvas/scene.setAgentProcessingState` |
+| FR-5.6 | `ui/canvas/scene.setConnectionTransitState`, `ui/canvas/scene.setAgentProcessingState` |
+| FR-5.7 | `runtime/state.getAgentState`, `ui/canvas/scene.showAgentHover` |
+| FR-5.8 | `runtime/state.getConnectionState`, `ui/canvas/scene.showConnectionHover` |
+| FR-6.1 | `ui/actions.startConnectionDrag`, `ui/actions.completeConnectionDrag`, `core/flowOperations.addConnectionToFlow` |
+| FR-6.2 | `ui/actions.selectAgentById` |
+| FR-6.3 | `core/flowOperations.addConnectionToFlow`, `core/flowOperations.updateConnectionTarget`, `core/flowOperations.removeConnectionFromFlow` |
+| FR-6.4 | `ui/actions.addAgentAtPosition`, `core/flowOperations.addAgentToFlow` |
+| FR-6.5 | `core/flowOperations.removeAgentFromFlow` |
+| FR-7.1 | `persistence/storage.saveFlow`, `persistence/storage.loadFlow` |
+| FR-7.2 | `persistence/storage.saveLastPath`, `persistence/storage.loadLastPath`, `ui/actions.restoreLastFlow` |
+| FR-8.1 | `runtime/executor.createCancelToken`, `runtime/executor.cancelRun`, `ui/actions.stopActiveRun` |
+
+**Notes for testing:** Tests should target backend endpoints directly
+(core, persistence, runtime). UI endpoints are adapters and can be covered by
+lightweight integration tests if needed.
 
 ---
 
