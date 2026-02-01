@@ -62,6 +62,32 @@ AgenticFlow/
 
 ---
 
+## 3.5 Backend Entry Points (Internal API)
+
+These are **internal backend endpoints** (module-level functions/classes) that
+both development and testing agents should use to locate critical behavior.
+They are **not HTTP endpoints**; they are explicit entry points for runtime,
+validation, and persistence.
+
+| Endpoint (Module Path) | Expected Entry Point | Responsibility | FRs |
+|---|---|---|---|
+| `src/core/models.py` | `Agent`, `Connection`, `Flow` | Data model classes for flow graphs | FR-2.1, FR-3.1, FR-7.1 |
+| `src/persistence/storage.py` | `loadFlow(path) -> Flow` | Load flow JSON from disk | FR-7.1 |
+| `src/persistence/storage.py` | `saveFlow(flow, path) -> None` | Save flow JSON to disk | FR-7.1 |
+| `src/persistence/storage.py` | `loadLastPath() -> Optional[str]` | Read last opened flow path | FR-7.2 |
+| `src/persistence/storage.py` | `saveLastPath(path) -> None` | Persist last opened flow path | FR-7.2 |
+| `src/runtime/credentials.py` | `getGoogleApiKey() -> str` | Read `GOOGLE_API_KEY` from env; raise on missing | FR-2.6 |
+| `src/runtime/validation.py` | `validateFlow(flow) -> (bool, str)` | Pre-run validation: env + API reachability | FR-2.5, FR-2.6 |
+| `src/runtime/executor.py` | `runAgent(agentId, inputText, flow, eventCallback) -> str` | Execute single agent via ADK | FR-2.4, FR-2.7, FR-4.1 |
+| `src/runtime/executor.py` | `runFlow(flow, entryAgentId, userMessage, cancelToken, eventCallback) -> None` | Execute multi-agent flow with fan-out | FR-3.2, FR-3.3, FR-4.2, FR-4.3, FR-8.1 |
+| `src/runtime/events.py` | `emitEvent(eventType, payload)` | Canonical runtime → GUI event dispatch | FR-5.1–5.8 |
+
+**Notes for testing:** Tests should target the functions above directly. All
+logic for validation and execution should live in these backend entry points,
+not in UI callbacks.
+
+---
+
 ## 4. Data Model
 
 Supports **FR-2.1**, **FR-2.7**, **FR-3.1**, **FR-6.x**, **FR-7.1**.
