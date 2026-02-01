@@ -1,9 +1,7 @@
+from .factories import createAgent, createConnection, createFlow
 from .flowOperations import (
     addAgentToFlow,
     addConnectionToFlow,
-    createAgent,
-    createConnection,
-    createFlow,
     getAgentById,
     getDownstreamConnections,
     removeAgentFromFlow,
