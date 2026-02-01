@@ -9,9 +9,16 @@ from src.core import (
     getAgentById,
     getDownstreamConnections,
     removeAgentFromFlow,
+    removeConnectionFromFlow,
     updateAgentInstructions,
     updateAgentPosition,
     updateConnectionTarget,
+)
+from src.core.flowOperations import (
+    findConnectionByEndpoints,
+    getConnectionById,
+    requireAgentById,
+    requireConnectionById,
 )
 
 
@@ -123,6 +130,24 @@ def testRemoveAgentRemovesConnections() -> None:
     assert getAgentById(flow, "agent-2") is targetAgent
 
 
+def testRemoveConnectionFromFlow() -> None:
+    flow = createFlow(flowId="flow-1")
+    sourceAgent = createAgent(name="Source", agentId="agent-1")
+    targetAgent = createAgent(name="Target", agentId="agent-2")
+    addAgentToFlow(flow, sourceAgent)
+    addAgentToFlow(flow, targetAgent)
+    connection = createConnection(
+        sourceId="agent-1",
+        targetId="agent-2",
+        connectionId="connection-1",
+    )
+    addConnectionToFlow(flow, connection)
+
+    removeConnectionFromFlow(flow, "connection-1")
+
+    assert flow.connections == []
+
+
 def testUpdateAgentInstructionsAndPosition() -> None:
     flow = createFlow(flowId="flow-1")
     agent = createAgent(name="Agent One", agentId="agent-1")
@@ -188,3 +213,91 @@ def testGetDownstreamConnectionsValidatesAgent() -> None:
 
     with pytest.raises(ValueError):
         getDownstreamConnections(flow, "missing-agent")
+
+
+def testGetConnectionByIdReturnsConnection() -> None:
+    flow = createFlow(flowId="flow-1")
+    sourceAgent = createAgent(name="Source", agentId="agent-1")
+    targetAgent = createAgent(name="Target", agentId="agent-2")
+    addAgentToFlow(flow, sourceAgent)
+    addAgentToFlow(flow, targetAgent)
+    connection = createConnection(
+        sourceId="agent-1",
+        targetId="agent-2",
+        connectionId="connection-1",
+    )
+    addConnectionToFlow(flow, connection)
+
+    foundConnection = getConnectionById(flow, "connection-1")
+
+    assert foundConnection is connection
+
+
+def testRequireAgentByIdReturnsAgent() -> None:
+    flow = createFlow(flowId="flow-1")
+    agent = createAgent(name="Agent", agentId="agent-1")
+    addAgentToFlow(flow, agent)
+
+    foundAgent = requireAgentById(flow, "agent-1")
+
+    assert foundAgent is agent
+
+
+def testRequireAgentByIdMissingRaises() -> None:
+    flow = createFlow(flowId="flow-1")
+
+    with pytest.raises(ValueError):
+        requireAgentById(flow, "missing-agent")
+
+
+def testRequireConnectionByIdMissingRaises() -> None:
+    flow = createFlow(flowId="flow-1")
+
+    with pytest.raises(ValueError):
+        requireConnectionById(flow, "missing-connection")
+
+
+def testFindConnectionByEndpoints() -> None:
+    flow = createFlow(flowId="flow-1")
+    sourceAgent = createAgent(name="Source", agentId="agent-1")
+    targetAgent = createAgent(name="Target", agentId="agent-2")
+    addAgentToFlow(flow, sourceAgent)
+    addAgentToFlow(flow, targetAgent)
+    connection = createConnection(
+        sourceId="agent-1",
+        targetId="agent-2",
+        connectionId="connection-1",
+    )
+    addConnectionToFlow(flow, connection)
+
+    foundConnection = findConnectionByEndpoints(
+        flow=flow,
+        sourceId="agent-1",
+        targetId="agent-2",
+        ignoreConnectionId=None,
+    )
+
+    assert foundConnection is connection
+
+
+def testFindConnectionByEndpointsIgnoresId() -> None:
+    flow = createFlow(flowId="flow-1")
+    sourceAgent = createAgent(name="Source", agentId="agent-1")
+    targetAgent = createAgent(name="Target", agentId="agent-2")
+    addAgentToFlow(flow, sourceAgent)
+    addAgentToFlow(flow, targetAgent)
+    connection = createConnection(
+        sourceId="agent-1",
+        targetId="agent-2",
+        connectionId="connection-1",
+    )
+    addConnectionToFlow(flow, connection)
+
+    foundConnection = findConnectionByEndpoints(
+        flow=flow,
+        sourceId="agent-1",
+        targetId="agent-2",
+        ignoreConnectionId="connection-1",
+    )
+
+    assert foundConnection is None
