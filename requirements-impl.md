@@ -79,12 +79,21 @@ Supports **FR-2.1**, **FR-2.7**, **FR-3.1**, **FR-6.x**, **FR-7.1**.
 | **Flow** | `id`, `name?`, `agents: List[Agent]`, `connections: List[Connection]` | Root for save/load. |
 
 **Endpoints (data + flow operations):**
-- `core/models.Agent`, `core/models.Connection`, `core/models.Flow`
-- `core/flowOperations.createFlow`, `core/flowOperations.createAgent`, `core/flowOperations.createConnection`
-- `core/flowOperations.addAgentToFlow`, `core/flowOperations.removeAgentFromFlow`
-- `core/flowOperations.addConnectionToFlow`, `core/flowOperations.removeConnectionFromFlow`
-- `core/flowOperations.updateConnectionTarget`, `core/flowOperations.updateAgentInstructions`, `core/flowOperations.updateAgentPosition`
-- `core/flowOperations.getAgentById`, `core/flowOperations.getDownstreamConnections`
+- [GET] `core/models/agent`
+- [GET] `core/models/connection`
+- [GET] `core/models/flow`
+- [POST] `core/flow-operations/create-flow`
+- [POST] `core/flow-operations/create-agent`
+- [POST] `core/flow-operations/create-connection`
+- [POST] `core/flow-operations/add-agent-to-flow`
+- [DELETE] `core/flow-operations/remove-agent-from-flow`
+- [POST] `core/flow-operations/add-connection-to-flow`
+- [DELETE] `core/flow-operations/remove-connection-from-flow`
+- [PUT] `core/flow-operations/update-connection-target`
+- [PUT] `core/flow-operations/update-agent-instructions`
+- [PUT] `core/flow-operations/update-agent-position`
+- [GET] `core/flow-operations/get-agent-by-id`
+- [GET] `core/flow-operations/get-downstream-connections`
 
 `Agent`’s “own context” (FR-2.2) and “context provided to it” (FR-2.3) are handled at **runtime** in the executor (per-run history and input), not in the persisted model. Persist only what defines the flow and agent config.
 
@@ -101,8 +110,10 @@ Supports **FR-2.1**, **FR-2.7**, **FR-3.1**, **FR-6.x**, **FR-7.1**.
 - **Save/Load:** Explicit Save/Save As and Open in GUI; `persistence.storage` reads/writes JSON and returns/accepts `Flow`.
 
 **Endpoints (persistence):**
-- `persistence/storage.saveFlow`, `persistence/storage.loadFlow`
-- `persistence/storage.saveLastPath`, `persistence/storage.loadLastPath`
+- [PUT] `persistence/storage/save-flow`
+- [GET] `persistence/storage/load-flow`
+- [PUT] `persistence/storage/save-last-path`
+- [GET] `persistence/storage/load-last-path`
 
 ---
 
@@ -116,8 +127,8 @@ Supports **FR-2.1**, **FR-2.7**, **FR-3.1**, **FR-6.x**, **FR-7.1**.
 - **Agent → agent (FR-4.2, FR-4.3):** When an agent produces an output, the executor looks up `connections` with `source_id == that agent` and delivers the output to each `target_id`. Those agents run when they receive input (and can again fan out).
 
 **Endpoints (trigger + routing):**
-- `runtime/executor.runFlow`
-- `core/flowOperations.getDownstreamConnections`
+- [POST] `runtime/executor/run-flow`
+- [GET] `core/flow-operations/get-downstream-connections`
 
 ### 6.2 Execution Model
 
@@ -125,11 +136,16 @@ Supports **FR-2.1**, **FR-2.7**, **FR-3.1**, **FR-6.x**, **FR-7.1**.
 - **Pre-run validation (FR-2.5):** Before starting, for each distinct agent in the flow: check env var is set and (optionally) that the Google API (via ADK) is reachable. If any check fails: block run, show message in GUI.
 
 **Endpoints (execution + validation):**
-- `runtime/executor.runAgent`, `runtime/executor.runFlow`
-- `runtime/executor.createCancelToken`, `runtime/executor.cancelRun`
-- `runtime/validation.validateFlow`, `runtime/validation.validateAdkConnectivity`
-- `runtime/credentials.getGoogleApiKey`, `runtime/credentials.validateGoogleApiKey`
-- `runtime/context.buildAgentContext`, `runtime/context.updateAgentContext`
+- [POST] `runtime/executor/run-agent`
+- [POST] `runtime/executor/run-flow`
+- [POST] `runtime/executor/create-cancel-token`
+- [DELETE] `runtime/executor/cancel-run`
+- [POST] `runtime/validation/validate-flow`
+- [POST] `runtime/validation/validate-adk-connectivity`
+- [GET] `runtime/credentials/get-google-api-key`
+- [POST] `runtime/credentials/validate-google-api-key`
+- [POST] `runtime/context/build-agent-context`
+- [PUT] `runtime/context/update-agent-context`
 
 ### 6.3 Events for the GUI (FR-5.x)
 
@@ -147,9 +163,13 @@ Emit from the executor; GUI subscribes and updates the canvas:
 Implement via a small **event bus** or **callback registry** from `runtime` to `gui`.
 
 **Endpoints (events + hover state):**
-- `runtime/events.RuntimeEventBus`, `runtime/events.emitEvent`, `runtime/events.registerListener`
-- `runtime/state.setAgentOutput`, `runtime/state.getAgentState`
-- `runtime/state.setConnectionData`, `runtime/state.getConnectionState`
+- [GET] `runtime/events/runtime-event-bus`
+- [POST] `runtime/events/emit-event`
+- [POST] `runtime/events/register-listener`
+- [PUT] `runtime/state/set-agent-output`
+- [GET] `runtime/state/get-agent-state`
+- [PUT] `runtime/state/set-connection-data`
+- [GET] `runtime/state/get-connection-state`
 
 ---
 
@@ -164,9 +184,12 @@ Implement via a small **event bus** or **callback registry** from `runtime` to `
 - **Side panel(s):** When an agent is selected (FR-6.2): show **system instructions** editor (FR-2.7) and, if needed, add/edit/delete **connections** (FR-6.3). Or a context menu for connections.
 
 **Endpoints (main window actions):**
-- `ui/main.py.createMainWindow`
-- `ui/actions.runSelectedAgentWithMessage`, `ui/actions.stopActiveRun`
-- `ui/actions.openFlowFromPath`, `ui/actions.saveFlowToPath`, `ui/actions.restoreLastFlow`
+- [POST] `ui/main/create-main-window`
+- [POST] `ui/actions/run-selected-agent-with-message`
+- [DELETE] `ui/actions/stop-active-run`
+- [GET] `ui/actions/open-flow-from-path`
+- [PUT] `ui/actions/save-flow-to-path`
+- [GET] `ui/actions/restore-last-flow`
 
 ### 7.2 Flow Canvas (FR-5.1–5.3, FR-5.6, FR-6.x)
 
@@ -176,18 +199,22 @@ Implement via a small **event bus** or **callback registry** from `runtime` to `
 **Pulsating (FR-5.4, FR-5.5):** Use `QPropertyAnimation` on opacity/scale or a timer-driven repaint. When `agent_processing_started(agent_id)` → animate that node’s border; when `data_in_transit(connection_id)` → animate that edge only.
 
 **Endpoints (canvas rendering + hover):**
-- `ui/canvas/scene.renderFlow`
-- `ui/canvas/scene.setAgentProcessingState`, `ui/canvas/scene.setConnectionTransitState`
-- `ui/canvas/scene.showAgentHover`, `ui/canvas/scene.showConnectionHover`
-- `ui/actions.selectAgentById`
+- [POST] `ui/canvas/scene/render-flow`
+- [PUT] `ui/canvas/scene/set-agent-processing-state`
+- [PUT] `ui/canvas/scene/set-connection-transit-state`
+- [POST] `ui/canvas/scene/show-agent-hover`
+- [POST] `ui/canvas/scene/show-connection-hover`
+- [PUT] `ui/actions/select-agent-by-id`
 
 ### 7.3 Drag-to-Connect (FR-6.1)
 
 - On node: rubber-band or temporary line from node’s edge while dragging. On drop on another node: create `Connection(source_id, target_id)`, add to `Flow`, update scene. Validate: no duplicate `(source_id, target_id)`; no self-loops if not allowed.
 
 **Endpoints (drag connect):**
-- `ui/actions.startConnectionDrag`, `ui/actions.completeConnectionDrag`
-- `core/flowOperations.createConnection`, `core/flowOperations.addConnectionToFlow`
+- [POST] `ui/actions/start-connection-drag`
+- [POST] `ui/actions/complete-connection-drag`
+- [POST] `core/flow-operations/create-connection`
+- [POST] `core/flow-operations/add-connection-to-flow`
 
 ### 7.4 Add/Remove Nodes and Connections (FR-6.3–6.5)
 
@@ -196,11 +223,17 @@ Implement via a small **event bus** or **callback registry** from `runtime` to `
 - **Add/edit/delete connections (FR-6.3):** When an agent is selected: list its connections; buttons or menu to add (choose target), edit (change target), delete. Alternatively, select an edge to edit/delete that connection.
 
 **Endpoints (node + connection editing):**
-- `ui/actions.addAgentAtPosition`, `ui/actions.removeSelectedAgent`
-- `ui/actions.updateSelectedAgentInstructions`
-- `core/flowOperations.createAgent`, `core/flowOperations.addAgentToFlow`, `core/flowOperations.removeAgentFromFlow`
-- `core/flowOperations.updateAgentInstructions`, `core/flowOperations.updateAgentPosition`
-- `core/flowOperations.addConnectionToFlow`, `core/flowOperations.removeConnectionFromFlow`, `core/flowOperations.updateConnectionTarget`
+- [POST] `ui/actions/add-agent-at-position`
+- [DELETE] `ui/actions/remove-selected-agent`
+- [PUT] `ui/actions/update-selected-agent-instructions`
+- [POST] `core/flow-operations/create-agent`
+- [POST] `core/flow-operations/add-agent-to-flow`
+- [DELETE] `core/flow-operations/remove-agent-from-flow`
+- [PUT] `core/flow-operations/update-agent-instructions`
+- [PUT] `core/flow-operations/update-agent-position`
+- [POST] `core/flow-operations/add-connection-to-flow`
+- [DELETE] `core/flow-operations/remove-connection-from-flow`
+- [PUT] `core/flow-operations/update-connection-target`
 
 ---
 
@@ -213,8 +246,9 @@ Implement via a small **event bus** or **callback registry** from `runtime` to `
 - **Tools:** Omit for MVP (not in FRs for initial release).
 
 **Endpoints (ADK integration):**
-- `runtime/executor.runAgent`
-- `runtime/credentials.getGoogleApiKey`, `runtime/credentials.validateGoogleApiKey`
+- [POST] `runtime/executor/run-agent`
+- [GET] `runtime/credentials/get-google-api-key`
+- [POST] `runtime/credentials/validate-google-api-key`
 
 ---
 
@@ -231,7 +265,7 @@ Implement via a small **event bus** or **callback registry** from `runtime` to `
 ### 9.2 Setup (M0, M3)
 
 **App startup:**
-**Endpoint:** `main.py.startApplication`
+**Endpoint:** [POST] `main/start-application`
 ```python
 # ui/main.py
 from PySide6.QtWidgets import QApplication
