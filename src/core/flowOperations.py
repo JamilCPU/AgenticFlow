@@ -45,7 +45,7 @@ def removeAgentFromFlow(flow: Flow, agentId: str) -> None:
 
 
 def addConnectionToFlow(flow: Flow, connection: Connection) -> None:
-    if _hasDuplicateConnection(flow, connection.sourceId, connection.targetId):
+    if hasDuplicateConnection(flow, connection.sourceId, connection.targetId):
         raise ValueError(
             "Connection with the same source and target already exists"
         )
@@ -67,7 +67,7 @@ def updateConnectionTarget(
 ) -> Optional[Connection]:
     for connection in flow.connections:
         if connection.id == connectionId:
-            if _hasDuplicateConnection(
+            if hasDuplicateConnection(
                 flow,
                 connection.sourceId,
                 targetId,
@@ -122,7 +122,7 @@ def getDownstreamConnections(flow: Flow, agentId: str) -> List[Connection]:
     ]
 
 
-def _hasDuplicateConnection(
+def hasDuplicateConnection(
     flow: Flow,
     sourceId: str,
     targetId: str,
