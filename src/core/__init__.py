@@ -1,3 +1,4 @@
+# The init.py files are necessary in order to make the entire directory importable in other files.
 from .factories import createAgent, createConnection, createFlow
 from .flowOperations import (
     addAgentToFlow,
