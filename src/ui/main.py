@@ -9,8 +9,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("AgenticFlow")
         self.setGeometry(100, 100, 800, 600)
-        
-        # Central canvas
-        self.scene = FlowScene()
+                self.scene = FlowScene()
         self.view = QGraphicsView(self.scene)
         self.setCentralWidget(self.view)
